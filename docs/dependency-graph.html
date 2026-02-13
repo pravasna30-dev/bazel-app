@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dependency Graph - ECMonorepo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .graph-page { padding: 100px 0 60px; min-height: 100vh; }
+
+    .graph-header { text-align: center; margin-bottom: 40px; }
+    .graph-header h1 { font-size: 36px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 8px; }
+    .graph-header p { font-size: 16px; color: var(--text-muted); }
+
+    /* Toggle Controls */
+    .graph-controls {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+
+    .toggle-btn {
+      padding: 8px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      color: var(--text-muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn.active {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .toggle-btn:hover:not(.active) {
+      color: var(--text);
+      border-color: var(--text-muted);
+    }
+
+    /* SVG Graph */
+    .graph-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 32px;
+      overflow: visible;
+    }
+
+    .graph-svg {
+      width: 100%;
+      height: 520px;
+      display: block;
+    }
+
+    /* SVG Node Styles */
+    .node-group { cursor: pointer; }
+    .node-group:hover .node-box { filter: brightness(1.2); }
+    .node-group:hover .node-border { stroke: var(--accent-light); stroke-width: 2; }
+
+    .node-box { transition: filter 0.2s; }
+    .node-border { transition: stroke 0.2s, stroke-width 0.2s; }
+
+    .node-title {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      fill: #e0e0e8;
+    }
+
+    .node-subtitle {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      fill: #8888a0;
+    }
+
+    .node-badge-bg { rx: 8; ry: 8; }
+    .node-badge-text {
+      font-family: 'Inter', sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .edge-line {
+      stroke: #3a3a5e;
+      stroke-width: 2;
+      fill: none;
+      marker-end: url(#arrowhead);
+    }
+
+    .edge-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      fill: #6666880;
+    }
+
+    .annotation-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      fill: var(--text-muted);
+      transition: opacity 0.3s;
+    }
+
+    .annotation-url { fill: var(--accent-light); }
+    .annotation-version { fill: var(--green); }
+    .annotation-integration { fill: var(--yellow); }
+
+    .hidden { opacity: 0; pointer-events: none; }
+
+    /* Detail Panel */
+    .detail-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      display: none;
+    }
+
+    .detail-panel.visible { display: block; }
+
+    .detail-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .detail-panel-header h3 {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .detail-close {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .detail-close:hover { background: var(--border); color: var(--text); }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 0;
+    }
+
+    .detail-label {
+      padding: 10px 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-value {
+      padding: 10px 0;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-value code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      background: var(--surface);
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .detail-value a {
+      color: var(--accent-light);
+      text-decoration: none;
+    }
+
+    .detail-value a:hover { text-decoration: underline; }
+
+    .role-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 10px;
+      border-radius: 10px;
+    }
+
+    .role-consumer {
+      color: var(--accent-light);
+      background: var(--accent-glow);
+    }
+
+    .role-producer {
+      color: var(--green);
+      background: rgba(52, 211, 153, 0.1);
+    }
+
+    @media (max-width: 768px) {
+      .graph-svg { height: 600px; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .detail-label { border-bottom: none; padding-bottom: 2px; }
+      .detail-value { padding-top: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav class="nav nav-scrolled">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <span class="logo-icon">&#9671;</span> ECMonorepo
+    </a>
+    <div class="nav-links">
+      <a href="index.html#advantages">Advantages</a>
+      <a href="index.html#architecture">Architecture</a>
+      <a href="dependency-graph.html" style="color: var(--text);">Graph</a>
+      <a href="https://github.com/pravasna30-dev/ecmonorepo" class="nav-github" target="_blank">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<section class="graph-page">
+  <div class="container">
+    <div class="graph-header">
+      <h1>Dependency Graph</h1>
+      <p>Interactive view of all producer-consumer relationships in the ECMonorepo workspace.</p>
+    </div>
+
+    <!-- Toggle Controls -->
+    <div class="graph-controls">
+      <button class="toggle-btn active" data-toggle="urls">Git URLs</button>
+      <button class="toggle-btn active" data-toggle="versions">Versions</button>
+      <button class="toggle-btn active" data-toggle="integration">Integration Type</button>
+    </div>
+
+    <!-- SVG Graph -->
+    <div class="graph-container">
+      <svg class="graph-svg" viewBox="0 0 900 520" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#6366f1" />
+          </marker>
+          <linearGradient id="consumer-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#1e1e3a" />
+            <stop offset="100%" stop-color="#16162a" />
+          </linearGradient>
+          <linearGradient id="producer-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#162a1e" />
+            <stop offset="100%" stop-color="#121f18" />
+          </linearGradient>
+        </defs>
+
+        <!-- Edges: producer → consumer -->
+        <!-- bazel-monorepo → ecmonorepo -->
+        <path class="edge-line" d="M 245,120 C 350,120 350,260 450,260" />
+        <!-- dep-library → ecmonorepo -->
+        <path class="edge-line" d="M 245,280 L 450,280" />
+        <!-- mid-maven-lib → ecmonorepo -->
+        <path class="edge-line" d="M 245,440 C 350,440 350,300 450,300" />
+
+        <!-- Edge labels (integration type) -->
+        <text class="annotation-text annotation-integration" data-layer="integration" x="330" y="178">local_path_override</text>
+        <text class="annotation-text annotation-integration" data-layer="integration" x="330" y="268">source copy</text>
+        <text class="annotation-text annotation-integration" data-layer="integration" x="330" y="382">source copy</text>
+
+        <!-- ======================== -->
+        <!-- Node: bazel-monorepo     -->
+        <!-- ======================== -->
+        <g class="node-group" data-node="bazel-monorepo">
+          <rect class="node-box" x="30" y="70" width="215" height="100" rx="12" ry="12" fill="url(#producer-grad)" />
+          <rect class="node-border" x="30" y="70" width="215" height="100" rx="12" ry="12" fill="none" stroke="#2a4a3a" stroke-width="1" />
+          <!-- Badge -->
+          <rect class="node-badge-bg" x="40" y="80" width="56" height="20" fill="rgba(52,211,153,0.15)" />
+          <text class="node-badge-text" x="68" y="94" text-anchor="middle" fill="#34d399">Bazel</text>
+          <!-- Title -->
+          <text class="node-title" x="138" y="115" text-anchor="middle">composite-monorepo</text>
+          <!-- Subtitle: target -->
+          <text class="node-subtitle" x="138" y="132" text-anchor="middle">//low-level-1:LowLevelOne</text>
+          <!-- Annotations -->
+          <text class="annotation-text annotation-url" data-layer="urls" x="138" y="152" text-anchor="middle">github.com/.../bazel-monorepo</text>
+          <text class="annotation-text annotation-version" data-layer="versions" x="138" y="164" text-anchor="middle">branch: main</text>
+        </g>
+
+        <!-- ======================== -->
+        <!-- Node: dep-library        -->
+        <!-- ======================== -->
+        <g class="node-group" data-node="dep-library">
+          <rect class="node-box" x="30" y="230" width="215" height="100" rx="12" ry="12" fill="url(#producer-grad)" />
+          <rect class="node-border" x="30" y="230" width="215" height="100" rx="12" ry="12" fill="none" stroke="#2a4a3a" stroke-width="1" />
+          <rect class="node-badge-bg" x="40" y="240" width="72" height="20" fill="rgba(52,211,153,0.15)" />
+          <text class="node-badge-text" x="76" y="254" text-anchor="middle" fill="#34d399">Source</text>
+          <text class="node-title" x="138" y="275" text-anchor="middle">dep-library</text>
+          <text class="node-subtitle" x="138" y="292" text-anchor="middle">//library:library</text>
+          <text class="annotation-text annotation-url" data-layer="urls" x="138" y="312" text-anchor="middle">github.com/.../dep-library</text>
+          <text class="annotation-text annotation-version" data-layer="versions" x="138" y="324" text-anchor="middle">branch: main</text>
+        </g>
+
+        <!-- ======================== -->
+        <!-- Node: mid-maven-lib      -->
+        <!-- ======================== -->
+        <g class="node-group" data-node="mid-maven-lib">
+          <rect class="node-box" x="30" y="390" width="215" height="100" rx="12" ry="12" fill="url(#producer-grad)" />
+          <rect class="node-border" x="30" y="390" width="215" height="100" rx="12" ry="12" fill="none" stroke="#2a4a3a" stroke-width="1" />
+          <rect class="node-badge-bg" x="40" y="400" width="72" height="20" fill="rgba(52,211,153,0.15)" />
+          <text class="node-badge-text" x="76" y="414" text-anchor="middle" fill="#34d399">Source</text>
+          <text class="node-title" x="138" y="435" text-anchor="middle">mid-maven-lib</text>
+          <text class="node-subtitle" x="138" y="452" text-anchor="middle">//midlib:library</text>
+          <text class="annotation-text annotation-url" data-layer="urls" x="138" y="472" text-anchor="middle">github.com/.../mid-maven-lib</text>
+          <text class="annotation-text annotation-version" data-layer="versions" x="138" y="484" text-anchor="middle">branch: main</text>
+        </g>
+
+        <!-- ======================== -->
+        <!-- Node: ecmonorepo (consumer) -->
+        <!-- ======================== -->
+        <g class="node-group" data-node="ecmonorepo">
+          <rect class="node-box" x="450" y="220" width="220" height="120" rx="12" ry="12" fill="url(#consumer-grad)" />
+          <rect class="node-border" x="450" y="220" width="220" height="120" rx="12" ry="12" fill="none" stroke="#2a2a5e" stroke-width="1" />
+          <rect class="node-badge-bg" x="460" y="232" width="80" height="20" fill="rgba(99,102,241,0.15)" />
+          <text class="node-badge-text" x="500" y="246" text-anchor="middle" fill="#818cf8">Consumer</text>
+          <text class="node-title" x="560" y="275" text-anchor="middle" style="font-size:16px">ecmonorepo</text>
+          <text class="node-subtitle" x="560" y="295" text-anchor="middle">bazel run //:app</text>
+          <text class="annotation-text annotation-url" data-layer="urls" x="560" y="315" text-anchor="middle">github.com/.../ecmonorepo</text>
+          <text class="annotation-text annotation-version" data-layer="versions" x="560" y="327" text-anchor="middle">branch: main</text>
+        </g>
+
+        <!-- Legend -->
+        <g transform="translate(720, 80)">
+          <text font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#e0e0e8" x="0" y="0">Legend</text>
+          <rect x="0" y="12" width="12" height="12" rx="3" fill="url(#producer-grad)" stroke="#2a4a3a" />
+          <text font-family="Inter, sans-serif" font-size="11" fill="#8888a0" x="20" y="23">Producer</text>
+          <rect x="0" y="32" width="12" height="12" rx="3" fill="url(#consumer-grad)" stroke="#2a2a5e" />
+          <text font-family="Inter, sans-serif" font-size="11" fill="#8888a0" x="20" y="43">Consumer</text>
+          <line x1="0" y1="58" x2="24" y2="58" stroke="#6366f1" stroke-width="2" marker-end="url(#arrowhead)" />
+          <text font-family="Inter, sans-serif" font-size="11" fill="#8888a0" x="32" y="62">Depends on</text>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Detail Panel -->
+    <div class="detail-panel" id="detail-panel">
+      <div class="detail-panel-header">
+        <h3 id="detail-name"></h3>
+        <button class="detail-close" id="detail-close">&times;</button>
+      </div>
+      <div class="detail-grid" id="detail-grid"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="logo-icon">&#9671;</span> ECMonorepo
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/pravasna30-dev/ecmonorepo" target="_blank">GitHub</a>
+        <a href="index.html">Home</a>
+        <a href="local-setup.md">Setup Guide</a>
+      </div>
+    </div>
+    <p class="footer-note">Built with Bazel 9.0 &middot; Java 21</p>
+  </div>
+</footer>
+
+<script>
+const nodes = {
+  'ecmonorepo': {
+    name: 'ecmonorepo',
+    role: 'Consumer',
+    repository: 'https://github.com/pravasna30-dev/ecmonorepo',
+    branch: 'main',
+    buildSystem: 'Bazel',
+    integrationType: 'Root consumer',
+    target: '//:app',
+    description: 'The main consumer application that integrates all three producers.'
+  },
+  'bazel-monorepo': {
+    name: 'composite-monorepo',
+    role: 'Producer',
+    repository: 'https://github.com/pravasna30-dev/bazel-monorepo',
+    branch: 'main',
+    buildSystem: 'Bazel',
+    integrationType: 'Bazel module (local_path_override)',
+    target: '@composite-monorepo//low-level-1:LowLevelOne',
+    localPath: '../bazel-monorepo',
+    description: 'Bazel-native producer. Referenced via MODULE.bazel local_path_override, built from source as an external module.'
+  },
+  'dep-library': {
+    name: 'dep-library',
+    role: 'Producer',
+    repository: 'https://github.com/pravasna30-dev/dep-library',
+    branch: 'main',
+    buildSystem: 'Gradle/Maven',
+    integrationType: 'Source copy (java_library)',
+    target: '//library:library',
+    localPath: '../dep-library',
+    description: 'Java sources copied into library/ package with a generated java_library BUILD target.'
+  },
+  'mid-maven-lib': {
+    name: 'mid-maven-lib',
+    role: 'Producer',
+    repository: 'https://github.com/pravasna30-dev/mid-maven-lib',
+    branch: 'main',
+    buildSystem: 'Maven',
+    integrationType: 'Source copy (java_library)',
+    target: '//midlib:library',
+    localPath: '../mid-maven-lib',
+    description: 'Maven producer. Java sources copied into midlib/ package with a generated java_library BUILD target.'
+  }
+};
+
+// Toggle buttons
+document.querySelectorAll('.toggle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    btn.classList.toggle('active');
+    const layer = btn.dataset.toggle;
+    const visible = btn.classList.contains('active');
+    document.querySelectorAll(`[data-layer="${layer}"]`).forEach(el => {
+      el.classList.toggle('hidden', !visible);
+    });
+  });
+});
+
+// Node click → detail panel
+document.querySelectorAll('.node-group').forEach(group => {
+  group.addEventListener('click', () => {
+    const nodeId = group.dataset.node;
+    const data = nodes[nodeId];
+    if (!data) return;
+
+    document.getElementById('detail-name').textContent = data.name;
+
+    const grid = document.getElementById('detail-grid');
+    const fields = [
+      ['Role', `<span class="role-badge role-${data.role.toLowerCase()}">${data.role}</span>`],
+      ['Repository', `<a href="${data.repository}" target="_blank">${data.repository}</a>`],
+      ['Branch', data.branch],
+      ['Build System', data.buildSystem],
+      ['Integration', data.integrationType],
+      ['Bazel Target', `<code>${data.target}</code>`],
+    ];
+    if (data.localPath) {
+      fields.push(['Local Path', `<code>${data.localPath}</code>`]);
+    }
+    fields.push(['Description', data.description]);
+
+    grid.innerHTML = fields.map(([label, value]) =>
+      `<div class="detail-label">${label}</div><div class="detail-value">${value}</div>`
+    ).join('');
+
+    document.getElementById('detail-panel').classList.add('visible');
+  });
+});
+
+// Close detail panel
+document.getElementById('detail-close').addEventListener('click', () => {
+  document.getElementById('detail-panel').classList.remove('visible');
+});
+</script>
+
+</body>
+</html>
