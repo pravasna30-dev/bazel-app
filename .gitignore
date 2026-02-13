@@ -15,6 +15,7 @@
 
 # Package Files #
 *.jar
+!third_party/**/*.jar
 *.war
 *.nar
 *.ear
