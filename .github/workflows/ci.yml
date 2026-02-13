@@ -28,12 +28,12 @@ jobs:
 
       - name: Clone producer repositories
         run: |
-          count=$(yq '.producers | length' producer.yaml)
+          count=$(yq '.producers | length' PRODUCERS.yaml)
           for i in $(seq 0 $(( count - 1 ))); do
-            name=$(yq ".producers[$i].name" producer.yaml)
-            repo=$(yq ".producers[$i].repository" producer.yaml)
-            ref=$(yq ".producers[$i].ref" producer.yaml)
-            path=$(yq ".producers[$i].path" producer.yaml)
+            name=$(yq ".producers[$i].name" PRODUCERS.yaml)
+            repo=$(yq ".producers[$i].repository" PRODUCERS.yaml)
+            ref=$(yq ".producers[$i].ref" PRODUCERS.yaml)
+            path=$(yq ".producers[$i].path" PRODUCERS.yaml)
 
             echo "Cloning producer: $name ($repo @ $ref) into $path"
             git clone --branch "$ref" --single-branch --depth 1 "$repo" "$path"
@@ -43,10 +43,10 @@ jobs:
         run: |
           echo ""
           echo "--- Generating composite MODULE.bazel ---"
-          count=$(yq '.producers | length' producer.yaml)
+          count=$(yq '.producers | length' PRODUCERS.yaml)
           for i in $(seq 0 $(( count - 1 ))); do
-            name=$(yq ".producers[$i].name" producer.yaml)
-            path=$(yq ".producers[$i].path" producer.yaml)
+            name=$(yq ".producers[$i].name" PRODUCERS.yaml)
+            path=$(yq ".producers[$i].path" PRODUCERS.yaml)
 
             echo "" >> MODULE.bazel
             echo "bazel_dep(name = \"$name\", version = \"1.0.0\")" >> MODULE.bazel
@@ -68,12 +68,12 @@ jobs:
 
           # Collect all dep labels from all producers
           DEPS=""
-          count=$(yq '.producers | length' producer.yaml)
+          count=$(yq '.producers | length' PRODUCERS.yaml)
           for i in $(seq 0 $(( count - 1 ))); do
-            name=$(yq ".producers[$i].name" producer.yaml)
-            target_count=$(yq ".producers[$i].targets | length" producer.yaml)
+            name=$(yq ".producers[$i].name" PRODUCERS.yaml)
+            target_count=$(yq ".producers[$i].targets | length" PRODUCERS.yaml)
             for j in $(seq 0 $(( target_count - 1 ))); do
-              target=$(yq ".producers[$i].targets[$j]" producer.yaml)
+              target=$(yq ".producers[$i].targets[$j]" PRODUCERS.yaml)
               DEPS="$DEPS        \"@${name}${target}\","$'\n'
             done
           done
@@ -104,12 +104,12 @@ jobs:
           # Collect imports from all producers
           IMPORTS=""
           CALLS=""
-          count=$(yq '.producers | length' producer.yaml)
+          count=$(yq '.producers | length' PRODUCERS.yaml)
           for i in $(seq 0 $(( count - 1 ))); do
-            import_count=$(yq ".producers[$i].imports | length" producer.yaml)
+            import_count=$(yq ".producers[$i].imports | length" PRODUCERS.yaml)
             for j in $(seq 0 $(( import_count - 1 ))); do
-              class=$(yq ".producers[$i].imports[$j].class" producer.yaml)
-              call=$(yq ".producers[$i].imports[$j].call" producer.yaml)
+              class=$(yq ".producers[$i].imports[$j].class" PRODUCERS.yaml)
+              call=$(yq ".producers[$i].imports[$j].call" PRODUCERS.yaml)
               IMPORTS="${IMPORTS}import ${class};"$'\n'
               CALLS="${CALLS}        ${call};"$'\n'
             done
@@ -133,10 +133,10 @@ jobs:
         run: |
           echo "Directory layout:"
           ls -la ..
-          count=$(yq '.producers | length' producer.yaml)
+          count=$(yq '.producers | length' PRODUCERS.yaml)
           for i in $(seq 0 $(( count - 1 ))); do
-            path=$(yq ".producers[$i].path" producer.yaml)
-            name=$(yq ".producers[$i].name" producer.yaml)
+            path=$(yq ".producers[$i].path" PRODUCERS.yaml)
+            name=$(yq ".producers[$i].name" PRODUCERS.yaml)
             if [ -d "$path" ]; then
               echo "Producer '$name' found at $path"
             else
