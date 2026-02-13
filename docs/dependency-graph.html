@@ -249,6 +249,9 @@
       <button class="toggle-btn active" data-toggle="urls">Git URLs</button>
       <button class="toggle-btn active" data-toggle="versions">Versions</button>
       <button class="toggle-btn active" data-toggle="integration">Integration Type</button>
+      <span style="width:1px; background:var(--border); margin:0 4px;"></span>
+      <a href="https://github.com/pravasna30-dev/ecmonorepo/actions/workflows/ci.yml" target="_blank" class="toggle-btn" style="text-decoration:none; color:var(--green);">View CI Runs</a>
+      <a href="https://github.com/pravasna30-dev/ecmonorepo/actions/workflows/ci.yml?query=workflow_dispatch" target="_blank" class="toggle-btn" style="text-decoration:none; color:var(--yellow);">Trigger CI</a>
     </div>
 
     <!-- SVG Graph -->
@@ -392,6 +395,7 @@ const nodes = {
     buildSystem: 'Bazel',
     integrationType: 'Root consumer',
     target: '//:app',
+    ciWorkflow: 'https://github.com/pravasna30-dev/ecmonorepo/actions/workflows/ci.yml',
     description: 'The main consumer application that integrates all three producers.'
   },
   'bazel-monorepo': {
@@ -461,6 +465,9 @@ document.querySelectorAll('.node-group').forEach(group => {
     ];
     if (data.localPath) {
       fields.push(['Local Path', `<code>${data.localPath}</code>`]);
+    }
+    if (data.ciWorkflow) {
+      fields.push(['CI Actions', `<a href="${data.ciWorkflow}" target="_blank">View Runs</a> &nbsp;&middot;&nbsp; <a href="${data.ciWorkflow}?query=workflow_dispatch" target="_blank">Trigger Workflow</a>`]);
     }
     fields.push(['Description', data.description]);
 
