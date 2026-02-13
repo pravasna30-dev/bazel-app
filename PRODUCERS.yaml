@@ -23,3 +23,15 @@ producers:
     imports:
       - class: com.example.library.UserService
         call: "System.out.println(\"All users: \" + new UserService().findAll())"
+
+  - name: mid-maven-lib
+    build_system: source
+    repository: https://github.com/pravasna30-dev/mid-maven-lib.git
+    ref: main
+    path: ../mid-maven-lib
+    source_root: src/main/java
+    package_name: midlib
+    target: "//midlib:library"
+    imports:
+      - class: com.example.midlib.MidLibService
+        call: MidLibService.say()
